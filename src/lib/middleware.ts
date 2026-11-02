@@ -14,7 +14,7 @@ export async function requireAuth(request: Request): Promise<{ userId: string } 
 export async function requireProjectApiKey(
   request: Request,
   projectName: string
-): Promise<{ project: { id: string; name: string } } | NextResponse> {
+): Promise<{ project: { id: string; name: string; database_url: string | null } } | NextResponse> {
   const apiKeyHeader = request.headers.get('x-api-key');
   if (!apiKeyHeader) {
     return NextResponse.json(
@@ -24,8 +24,8 @@ export async function requireProjectApiKey(
   }
 
   const projects = await sql<
-    { id: string; name: string; api_key: string }[]
-  >`SELECT id, name, api_key FROM projects WHERE name = ${projectName} LIMIT 1`;
+    { id: string; name: string; api_key: string; database_url: string | null }[]
+  >`SELECT id, name, api_key, database_url FROM projects WHERE name = ${projectName} LIMIT 1`;
 
   if (!projects || projects.length === 0) {
     return NextResponse.json(
@@ -42,6 +42,5 @@ export async function requireProjectApiKey(
     );
   }
 
-  return { project: { id: project.id, name: project.name } };
+  return { project: { id: project.id, name: project.name, database_url: project.database_url } };
 }
-

@@ -31,6 +31,32 @@ function ApiTesterComponent() {
   } | null>(null);
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [copiedCurl, setCopiedCurl] = useState(false);
+
+  const copyAsCurl = () => {
+    if (!url.trim()) return;
+    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    const fullUrl = url.startsWith('http') ? url : `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+
+    const headersList: string[] = ['-H "Content-Type: application/json"'];
+    if (apiKey.trim()) {
+      headersList.push(`-H "x-api-key: ${apiKey.trim()}"`);
+    }
+    customHeaders.forEach((h) => {
+      if (h.key.trim()) {
+        headersList.push(`-H "${h.key.trim()}: ${h.value}"`);
+      }
+    });
+
+    let curlCmd = `curl -X ${method} "${fullUrl}" \\\n  ${headersList.join(' \\\n  ')}`;
+    if (['POST', 'PUT', 'PATCH'].includes(method) && body.trim()) {
+      curlCmd += ` \\\n  -d '${body.trim()}'`;
+    }
+
+    navigator.clipboard.writeText(curlCmd);
+    setCopiedCurl(true);
+    setTimeout(() => setCopiedCurl(false), 2000);
+  };
 
   useEffect(() => {
     const urlParam = searchParams.get('url');
@@ -183,14 +209,25 @@ function ApiTesterComponent() {
               style={{ flex: 1, fontFamily: 'monospace' }}
             />
 
-            <button
-              onClick={handleSend}
-              disabled={loading || !url.trim()}
-              className="btn-primary"
-              style={{ minWidth: '100px' }}
-            >
-              {loading ? 'Sending...' : 'Send'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={handleSend}
+                disabled={loading || !url.trim()}
+                className="btn-primary"
+                style={{ minWidth: '90px' }}
+              >
+                {loading ? 'Sending...' : 'Send'}
+              </button>
+              <button
+                type="button"
+                onClick={copyAsCurl}
+                disabled={!url.trim()}
+                className="btn-secondary"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {copiedCurl ? '✓ Copied' : '📋 cURL'}
+              </button>
+            </div>
           </div>
 
           {/* Authentication & Headers */}

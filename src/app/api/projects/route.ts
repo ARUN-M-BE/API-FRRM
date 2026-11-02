@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
-import { sql } from '@/lib/db';
+import { sql, testDbConnection } from '@/lib/db';
 import { validateIdentifier, validateVersion, validateColumns, ValidationError } from '@/lib/validators';
 import { generateApiKey } from '@/lib/api-key';
 import { createProjectSchema, createApiTable } from '@/lib/project-db';
@@ -15,11 +15,12 @@ export async function GET(request: Request) {
         id: string;
         name: string;
         api_key: string;
+        database_url: string | null;
         created_at: string;
         api_count: number;
       }[]
     >`
-      SELECT p.id, p.name, p.api_key, p.created_at,
+      SELECT p.id, p.name, p.api_key, p.database_url, p.created_at,
              COUNT(a.id)::int AS api_count
       FROM projects p
       LEFT JOIN apis a ON a.project_id = p.id
@@ -44,9 +45,22 @@ export async function POST(request: Request) {
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
-    const { name, apis = [], notify_channels = [] } = body;
+    const { name, apis = [], notify_channels = [], database_url = null } = body;
 
     const cleanProjectName = validateIdentifier(name, 'Project name');
+
+    // If an external database URL was provided, verify it first
+    let cleanDbUrl: string | null = null;
+    if (database_url && typeof database_url === 'string' && database_url.trim()) {
+      cleanDbUrl = database_url.trim();
+      const testResult = await testDbConnection(cleanDbUrl);
+      if (!testResult.success) {
+        return NextResponse.json(
+          { error: `External Database connection failed: ${testResult.error || 'Unable to connect'}` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Check if project name already exists globally
     const existing = await sql<
@@ -62,18 +76,18 @@ export async function POST(request: Request) {
 
     const apiKey = generateApiKey();
 
-    // 1. Insert project
+    // 1. Insert project into meta table
     const insertedProject = await sql<
-      { id: string; name: string; api_key: string; created_at: string }[]
+      { id: string; name: string; api_key: string; database_url: string | null; created_at: string }[]
     >`
-      INSERT INTO projects (user_id, name, api_key)
-      VALUES (${auth.userId}, ${cleanProjectName}, ${apiKey})
-      RETURNING id, name, api_key, created_at
+      INSERT INTO projects (user_id, name, api_key, database_url)
+      VALUES (${auth.userId}, ${cleanProjectName}, ${apiKey}, ${cleanDbUrl})
+      RETURNING id, name, api_key, database_url, created_at
     `;
     const project = insertedProject[0];
 
-    // 2. Create schema in Postgres
-    await createProjectSchema(cleanProjectName);
+    // 2. Create schema in target database (default or external)
+    await createProjectSchema(cleanProjectName, cleanDbUrl);
 
     // 3. Create APIs if provided
     const createdApis = [];
@@ -84,10 +98,10 @@ export async function POST(request: Request) {
         const validColumns = validateColumns(api.columns);
         const checkUrl = api.check_url ? String(api.check_url).trim() : null;
 
-        // Create table in project schema
-        await createApiTable(cleanProjectName, cleanApiName, cleanVersion, validColumns);
+        // Create table in project schema (default or external)
+        await createApiTable(cleanProjectName, cleanApiName, cleanVersion, validColumns, cleanDbUrl);
 
-        // Record in apis table
+        // Record in apis meta table
         const insertedApi = await sql<
           { id: string; name: string; version: string; columns: any; check_url: string | null }[]
         >`
@@ -146,4 +160,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

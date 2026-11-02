@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS projects (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT UNIQUE NOT NULL,          -- validated identifier e.g. shop_app
   api_key TEXT UNIQUE NOT NULL,
+  database_url TEXT,                  -- optional external postgres database URL
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

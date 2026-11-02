@@ -26,12 +26,18 @@ function ProjectSettingsContent() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [databaseUrl, setDatabaseUrl] = useState('');
+  const [testingDb, setTestingDb] = useState(false);
+  const [savingDb, setSavingDb] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState<{ success: boolean; latencyMs?: number; error?: string } | null>(null);
+
   useEffect(() => {
     fetch(`/api/projects/${projectName}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.project) {
           setApiKey(data.project.api_key);
+          setDatabaseUrl(data.project.database_url || '');
           setChannels(data.project.channels || []);
         } else {
           setError(data.error || 'Failed to load settings');
@@ -40,6 +46,45 @@ function ProjectSettingsContent() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [projectName]);
+
+  const testDb = async () => {
+    if (!databaseUrl.trim()) return;
+    setTestingDb(true);
+    setDbTestResult(null);
+    try {
+      const res = await fetch('/api/projects/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ database_url: databaseUrl.trim() }),
+      });
+      const data = await res.json();
+      setDbTestResult(data);
+    } catch (err: any) {
+      setDbTestResult({ success: false, error: err.message });
+    } finally {
+      setTestingDb(false);
+    }
+  };
+
+  const handleSaveDb = async () => {
+    try {
+      setSavingDb(true);
+      setMessage(null);
+      setError(null);
+      const res = await fetch(`/api/projects/${projectName}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ database_url: databaseUrl.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update database URL');
+      setMessage('Database configuration updated successfully.');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSavingDb(false);
+    }
+  };
 
   const handleRotateKey = async () => {
     if (!confirm('Are you sure you want to rotate the API key? The old key will immediately stop working!')) {
@@ -198,6 +243,65 @@ function ProjectSettingsContent() {
             >
               {rotatingKey ? 'Rotating...' : 'Rotate Key'}
             </button>
+          </div>
+        </div>
+
+        {/* Database Engine / External Database Configuration */}
+        <div className="glass-panel" style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Database Connection</h2>
+            <span className="badge-muted">{databaseUrl ? 'External PostgreSQL' : 'Default Neon Serverless'}</span>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+            Configure where the <code>&quot;{projectName}&quot;</code> schema and tables are stored. Leave empty to use the default Neon PostgreSQL database.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <input
+                type="password"
+                className="input-field"
+                placeholder="postgresql://user:pass@host/db?sslmode=require (Leave empty for default Neon)"
+                value={databaseUrl}
+                onChange={(e) => setDatabaseUrl(e.target.value)}
+                style={{ flex: 1, minWidth: '320px', fontFamily: 'monospace' }}
+              />
+              <button
+                type="button"
+                onClick={testDb}
+                disabled={testingDb || !databaseUrl.trim()}
+                className="btn-secondary"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {testingDb ? 'Testing...' : 'Test Connection'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDb}
+                disabled={savingDb}
+                className="btn-primary"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {savingDb ? 'Saving...' : 'Save Database'}
+              </button>
+            </div>
+
+            {dbTestResult && (
+              <div
+                style={{
+                  fontSize: '0.85rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  background: dbTestResult.success ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                  color: dbTestResult.success ? '#34d399' : '#fb7185',
+                  border: `1px solid ${dbTestResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                }}
+              >
+                {dbTestResult.success
+                  ? `✓ Connection verified! Latency: ${dbTestResult.latencyMs}ms`
+                  : `✕ Connection failed: ${dbTestResult.error}`}
+              </div>
+            )}
           </div>
         </div>
 

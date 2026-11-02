@@ -22,9 +22,9 @@ export async function DELETE(request: Request, { params }: Params) {
     const cleanVer = validateVersion(versionQuery);
 
     const projects = await sql<
-      { id: string; name: string }[]
+      { id: string; name: string; database_url: string | null }[]
     >`
-      SELECT id, name FROM projects
+      SELECT id, name, database_url FROM projects
       WHERE name = ${cleanProject} AND user_id = ${auth.userId}
       LIMIT 1
     `;
@@ -51,8 +51,8 @@ export async function DELETE(request: Request, { params }: Params) {
       );
     }
 
-    // Drop table in project schema
-    await dropApiTable(cleanProject, cleanApi, cleanVer);
+    // Drop table in project schema (default or external)
+    await dropApiTable(cleanProject, cleanApi, cleanVer, project.database_url);
 
     // Delete api record
     await sql`DELETE FROM apis WHERE id = ${existing[0].id}`;

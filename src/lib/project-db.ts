@@ -1,4 +1,4 @@
-import { executeRawSql, sql } from './db';
+import { executeRawSql } from './db';
 import { ColumnDefinition, mapColumnTypeToPostgres } from './schemas';
 import { validateIdentifier, validateVersion } from './validators';
 
@@ -8,21 +8,28 @@ export function getTableName(apiName: string, version: string): string {
   return `${cleanApi}_${cleanVer}`;
 }
 
-export async function createProjectSchema(projectName: string): Promise<void> {
+export async function createProjectSchema(
+  projectName: string,
+  customDbUrl?: string | null
+): Promise<void> {
   const cleanProject = validateIdentifier(projectName, 'Project name');
-  await executeRawSql(`CREATE SCHEMA IF NOT EXISTS "${cleanProject}"`);
+  await executeRawSql(`CREATE SCHEMA IF NOT EXISTS "${cleanProject}"`, [], customDbUrl);
 }
 
-export async function dropProjectSchema(projectName: string): Promise<void> {
+export async function dropProjectSchema(
+  projectName: string,
+  customDbUrl?: string | null
+): Promise<void> {
   const cleanProject = validateIdentifier(projectName, 'Project name');
-  await executeRawSql(`DROP SCHEMA IF EXISTS "${cleanProject}" CASCADE`);
+  await executeRawSql(`DROP SCHEMA IF EXISTS "${cleanProject}" CASCADE`, [], customDbUrl);
 }
 
 export async function createApiTable(
   projectName: string,
   apiName: string,
   version: string,
-  columns: ColumnDefinition[]
+  columns: ColumnDefinition[],
+  customDbUrl?: string | null
 ): Promise<string> {
   const cleanProject = validateIdentifier(projectName, 'Project name');
   const tableName = getTableName(apiName, version);
@@ -63,17 +70,17 @@ export async function createApiTable(
     );
   `;
 
-  await executeRawSql(query);
+  await executeRawSql(query, [], customDbUrl);
   return tableName;
 }
 
 export async function dropApiTable(
   projectName: string,
   apiName: string,
-  version: string
+  version: string,
+  customDbUrl?: string | null
 ): Promise<void> {
   const cleanProject = validateIdentifier(projectName, 'Project name');
   const tableName = getTableName(apiName, version);
-  await executeRawSql(`DROP TABLE IF EXISTS "${cleanProject}"."${tableName}" CASCADE`);
+  await executeRawSql(`DROP TABLE IF EXISTS "${cleanProject}"."${tableName}" CASCADE`, [], customDbUrl);
 }
-

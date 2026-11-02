@@ -72,7 +72,7 @@ export async function POST(request: Request, { params }: Params) {
       if (keys.length === 0) {
         // Default insert
         const q = `INSERT INTO "${cleanProject}"."${tableName}" DEFAULT VALUES RETURNING *`;
-        const res = await executeRawSql(q);
+        const res = await executeRawSql(q, [], auth.project.database_url);
         results.push(res[0]);
       } else {
         const colList = keys.map((k) => `"${k}"`).join(', ');
@@ -84,7 +84,7 @@ export async function POST(request: Request, { params }: Params) {
           VALUES (${placeholders})
           RETURNING *
         `;
-        const res = await executeRawSql(q, values);
+        const res = await executeRawSql(q, values, auth.project.database_url);
         results.push(res[0]);
       }
     }
@@ -160,7 +160,7 @@ export async function GET(request: Request, { params }: Params) {
 
     // Total count query
     const countQuery = `SELECT COUNT(*)::int AS total FROM "${cleanProject}"."${tableName}" ${whereSql}`;
-    const countResult = await executeRawSql(countQuery, values);
+    const countResult = await executeRawSql(countQuery, values, auth.project.database_url);
     const total = countResult[0]?.total || 0;
 
     // Data query
@@ -170,7 +170,7 @@ export async function GET(request: Request, { params }: Params) {
       ORDER BY created_at DESC
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
     `;
-    const data = await executeRawSql(dataQuery, [...values, limit, offset]);
+    const data = await executeRawSql(dataQuery, [...values, limit, offset], auth.project.database_url);
 
     return NextResponse.json({
       data,

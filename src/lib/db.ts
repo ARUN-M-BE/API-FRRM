@@ -33,20 +33,31 @@ export type SqlFunction = {
   <T = any[]>(strings: TemplateStringsArray, ...values: any[]): Promise<T>;
 };
 
-let cachedSql: any = null;
+let cachedDefaultSql: any = null;
+const clientCache = new Map<string, any>();
 
-export function getDb(): any {
-  if (cachedSql) return cachedSql;
+export function getDb(customUrl?: string | null): any {
+  if (customUrl && typeof customUrl === 'string' && customUrl.trim()) {
+    const trimmed = customUrl.trim();
+    if (clientCache.has(trimmed)) {
+      return clientCache.get(trimmed);
+    }
+    const client = neon(trimmed);
+    clientCache.set(trimmed, client);
+    return client;
+  }
+
+  if (cachedDefaultSql) return cachedDefaultSql;
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
     throw new Error('DATABASE_URL environment variable is not defined.');
   }
-  cachedSql = neon(dbUrl);
-  return cachedSql;
+  cachedDefaultSql = neon(dbUrl);
+  return cachedDefaultSql;
 }
 
 /**
- * Tagged template literal for SQL queries using Neon HTTP serverless client.
+ * Tagged template literal for SQL queries using the default Neon HTTP serverless client.
  */
 export const sql: SqlFunction = ((strings: TemplateStringsArray, ...values: any[]) => {
   const db = getDb();
@@ -54,16 +65,37 @@ export const sql: SqlFunction = ((strings: TemplateStringsArray, ...values: any[
 }) as SqlFunction;
 
 /**
- * Execute dynamic raw SQL safely for DDL / table creation where identifiers
- * have ALREADY been validated with validateIdentifier().
+ * Execute dynamic raw SQL safely on the default or an external database.
  */
 export async function executeRawSql<T = Record<string, any>>(
   query: string,
-  params: any[] = []
+  params: any[] = [],
+  customDbUrl?: string | null
 ): Promise<T[]> {
-  const db = getDb();
+  const db = getDb(customDbUrl);
   if (params.length === 0) {
     return (db as any).query(query);
   }
   return (db as any).query(query, params);
+}
+
+/**
+ * Test connectivity and credentials of an external database URL.
+ */
+export async function testDbConnection(
+  dbUrl: string
+): Promise<{ success: boolean; latencyMs: number; error?: string }> {
+  const startTime = performance.now();
+  try {
+    if (!dbUrl || !dbUrl.startsWith('postgres')) {
+      return { success: false, latencyMs: 0, error: 'Database URL must start with postgres:// or postgresql://' };
+    }
+    const client = neon(dbUrl.trim());
+    await (client as any).query('SELECT 1 as ping');
+    const latencyMs = Math.round(performance.now() - startTime);
+    return { success: true, latencyMs };
+  } catch (err: any) {
+    const latencyMs = Math.round(performance.now() - startTime);
+    return { success: false, latencyMs, error: err?.message || 'Connection failed' };
+  }
 }

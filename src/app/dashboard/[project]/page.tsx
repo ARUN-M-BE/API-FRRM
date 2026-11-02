@@ -42,6 +42,9 @@ function ProjectDetailContent() {
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [deletingApi, setDeletingApi] = useState<string | null>(null);
+  const [activeCurlApi, setActiveCurlApi] = useState<ApiItem | null>(null);
+  const [curlAction, setCurlAction] = useState<'GET' | 'POST' | 'PATCH' | 'DELETE'>('GET');
+  const [copiedCurl, setCopiedCurl] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -135,6 +138,67 @@ function ProjectDetailContent() {
     navigator.clipboard.writeText(project.api_key);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
+  };
+
+  const getBaseUrl = () => {
+    if (typeof window !== 'undefined') return window.location.origin;
+    return 'http://localhost:3000';
+  };
+
+  const generateCurlCommand = (api: ApiItem, action: 'GET' | 'POST' | 'PATCH' | 'DELETE') => {
+    if (!project) return '';
+    const base = getBaseUrl();
+    const endpoint = `${base}/api/p/${project.name}/${api.version}/${api.name}`;
+
+    // Sample payload from columns
+    const samplePayload: Record<string, any> = {};
+    if (Array.isArray(api.columns)) {
+      api.columns.forEach((col: any) => {
+        if (col.name === 'id' || col.name === 'created_at' || col.name === 'updated_at') return;
+        switch (col.type) {
+          case 'text':
+            samplePayload[col.name] = 'Sample Value';
+            break;
+          case 'int':
+          case 'bigint':
+            samplePayload[col.name] = 42;
+            break;
+          case 'float':
+            samplePayload[col.name] = 19.99;
+            break;
+          case 'bool':
+            samplePayload[col.name] = true;
+            break;
+          case 'json':
+            samplePayload[col.name] = { key: 'value' };
+            break;
+          case 'timestamp':
+            samplePayload[col.name] = new Date().toISOString();
+            break;
+          default:
+            samplePayload[col.name] = 'example';
+        }
+      });
+    }
+
+    const payloadJson = JSON.stringify(samplePayload, null, 2);
+
+    switch (action) {
+      case 'GET':
+        return `curl -X GET "${endpoint}?limit=10" \\\n  -H "x-api-key: ${project.api_key}"`;
+      case 'POST':
+        return `curl -X POST "${endpoint}" \\\n  -H "x-api-key: ${project.api_key}" \\\n  -H "Content-Type: application/json" \\\n  -d '${payloadJson}'`;
+      case 'PATCH':
+        return `curl -X PATCH "${endpoint}/<RECORD_UUID>" \\\n  -H "x-api-key: ${project.api_key}" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(samplePayload)}'`;
+      case 'DELETE':
+        return `curl -X DELETE "${endpoint}/<RECORD_UUID>" \\\n  -H "x-api-key: ${project.api_key}"`;
+    }
+  };
+
+  const copyCurl = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCurl(true);
+    setTimeout(() => setCopiedCurl(false), 2000);
   };
 
   const handleDeleteApi = async (apiName: string, version: string) => {
@@ -358,7 +422,17 @@ function ProjectDetailContent() {
                       </td>
 
                       <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            onClick={() => {
+                              setActiveCurlApi(api);
+                              setCurlAction('GET');
+                            }}
+                            className="btn-secondary"
+                            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                          >
+                            📋 cURL
+                          </button>
                           <Link
                             href={`/tester?url=${encodeURIComponent(endpointUrl)}&key=${project.api_key}`}
                             className="btn-secondary"
@@ -384,6 +458,111 @@ function ProjectDetailContent() {
           </div>
         )}
       </div>
+
+      {/* cURL Snippet Modal */}
+      {activeCurlApi && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+          }}
+          onClick={() => setActiveCurlApi(null)}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: '700px',
+              background: 'var(--bg-secondary)',
+              padding: '1.75rem',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+                  cURL Generator: <span style={{ color: '#818cf8' }}>{activeCurlApi.name}</span> ({activeCurlApi.version})
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  Copy-paste terminal commands for your dynamic REST API
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveCurlApi(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.25rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Action Tabs */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+              {(['GET', 'POST', 'PATCH', 'DELETE'] as const).map((act) => (
+                <button
+                  key={act}
+                  onClick={() => setCurlAction(act)}
+                  style={{
+                    padding: '0.35rem 0.8rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: curlAction === act ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                    color: curlAction === act ? '#818cf8' : 'var(--text-muted)',
+                    fontWeight: 600,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {act}
+                </button>
+              ))}
+            </div>
+
+            {/* cURL Display */}
+            <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+              <pre
+                style={{
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '1.25rem',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  fontSize: '0.85rem',
+                  color: '#e2e8f0',
+                  lineHeight: 1.5,
+                  overflowX: 'auto',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {generateCurlCommand(activeCurlApi, curlAction)}
+              </pre>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                onClick={() => copyCurl(generateCurlCommand(activeCurlApi, curlAction))}
+                className="btn-primary"
+                style={{ fontSize: '0.85rem' }}
+              >
+                {copiedCurl ? '✓ Copied to Clipboard!' : '📋 Copy cURL Command'}
+              </button>
+              <button onClick={() => setActiveCurlApi(null)} className="btn-secondary" style={{ fontSize: '0.85rem' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@ export async function GET(request: Request, { params }: Params) {
     const tableName = getTableName(cleanApi, cleanVer);
 
     const query = `SELECT * FROM "${cleanProject}"."${tableName}" WHERE id = $1 LIMIT 1`;
-    const rows = await executeRawSql(query, [id]);
+    const rows = await executeRawSql(query, [id], auth.project.database_url);
 
     if (!rows || rows.length === 0) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
@@ -106,7 +106,7 @@ export async function PUT(request: Request, { params }: Params) {
       RETURNING *
     `;
 
-    const updated = await executeRawSql(query, values);
+    const updated = await executeRawSql(query, values, auth.project.database_url);
     if (!updated || updated.length === 0) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
@@ -188,7 +188,7 @@ export async function PATCH(request: Request, { params }: Params) {
       RETURNING *
     `;
 
-    const updated = await executeRawSql(query, values);
+    const updated = await executeRawSql(query, values, auth.project.database_url);
     if (!updated || updated.length === 0) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
@@ -226,7 +226,7 @@ export async function DELETE(request: Request, { params }: Params) {
     const tableName = getTableName(cleanApi, cleanVer);
 
     const query = `DELETE FROM "${cleanProject}"."${tableName}" WHERE id = $1 RETURNING id`;
-    const deleted = await executeRawSql(query, [id]);
+    const deleted = await executeRawSql(query, [id], auth.project.database_url);
 
     if (!deleted || deleted.length === 0) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });

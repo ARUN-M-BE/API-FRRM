@@ -60,6 +60,30 @@ export default function NewProjectPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Database configuration
+  const [databaseUrl, setDatabaseUrl] = useState('');
+  const [testingDb, setTestingDb] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState<{ success: boolean; latencyMs?: number; error?: string } | null>(null);
+
+  const testExternalDb = async () => {
+    if (!databaseUrl.trim()) return;
+    setTestingDb(true);
+    setDbTestResult(null);
+    try {
+      const res = await fetch('/api/projects/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ database_url: databaseUrl.trim() }),
+      });
+      const data = await res.json();
+      setDbTestResult(data);
+    } catch (err: any) {
+      setDbTestResult({ success: false, error: err.message });
+    } finally {
+      setTestingDb(false);
+    }
+  };
+
   const addColumn = () => {
     setColumns([...columns, { name: '', type: 'text', required: false, unique: false, default: '' }]);
   };
@@ -121,6 +145,7 @@ export default function NewProjectPage() {
 
         payload = {
           name: name.trim(),
+          database_url: databaseUrl.trim() || null,
           apis: apisList,
           notify_channels: channels,
         };
@@ -234,6 +259,62 @@ export default function NewProjectPage() {
                   onChange={(e) => setName(e.target.value.toLowerCase())}
                   required
                 />
+              </div>
+            </div>
+
+            {/* External Database Configuration (Optional) */}
+            <div className="glass-panel" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>
+                  2. Database Engine (Optional)
+                </h2>
+                <span className="badge-muted">PostgreSQL</span>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                Leave blank to automatically use the default Serverless Neon PostgreSQL database, or connect your own external PostgreSQL instance.
+              </p>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+                  External Database Connection String
+                </label>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <input
+                    type="password"
+                    className="input-field"
+                    placeholder="postgresql://user:password@ep-xyz.neon.tech/neondb?sslmode=require"
+                    value={databaseUrl}
+                    onChange={(e) => setDatabaseUrl(e.target.value)}
+                    style={{ flex: 1, fontFamily: 'monospace' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={testExternalDb}
+                    disabled={testingDb || !databaseUrl.trim()}
+                    className="btn-secondary"
+                    style={{ whiteSpace: 'nowrap', minWidth: '120px' }}
+                  >
+                    {testingDb ? 'Testing...' : 'Test Ping'}
+                  </button>
+                </div>
+
+                {dbTestResult && (
+                  <div
+                    style={{
+                      marginTop: '0.75rem',
+                      fontSize: '0.85rem',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '6px',
+                      background: dbTestResult.success ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                      color: dbTestResult.success ? '#34d399' : '#fb7185',
+                      border: `1px solid ${dbTestResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                    }}
+                  >
+                    {dbTestResult.success
+                      ? `✓ Connection successful! Response latency: ${dbTestResult.latencyMs}ms`
+                      : `✕ Connection failed: ${dbTestResult.error}`}
+                  </div>
+                )}
               </div>
             </div>
 

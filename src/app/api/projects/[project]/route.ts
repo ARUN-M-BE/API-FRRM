@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
-import { sql } from '@/lib/db';
-import { dropProjectSchema } from '@/lib/project-db';
+import { sql, testDbConnection } from '@/lib/db';
+import { dropProjectSchema, createProjectSchema, createApiTable } from '@/lib/project-db';
 import { generateApiKey } from '@/lib/api-key';
 
 interface Params {
@@ -16,9 +16,9 @@ export async function GET(request: Request, { params }: Params) {
     const { project: projectName } = await params;
 
     const projects = await sql<
-      { id: string; name: string; api_key: string; created_at: string }[]
+      { id: string; name: string; api_key: string; database_url: string | null; created_at: string }[]
     >`
-      SELECT id, name, api_key, created_at
+      SELECT id, name, api_key, database_url, created_at
       FROM projects
       WHERE name = ${projectName} AND user_id = ${auth.userId}
       LIMIT 1
@@ -96,15 +96,18 @@ export async function PATCH(request: Request, { params }: Params) {
     const { project: projectName } = await params;
     const body = await request.json();
 
-    const projects = await sql<{ id: string }[]>`
-      SELECT id FROM projects WHERE name = ${projectName} AND user_id = ${auth.userId} LIMIT 1
+    const projects = await sql<
+      { id: string; name: string; database_url: string | null }[]
+    >`
+      SELECT id, name, database_url FROM projects WHERE name = ${projectName} AND user_id = ${auth.userId} LIMIT 1
     `;
 
     if (!projects || projects.length === 0) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const projectId = projects[0].id;
+    const project = projects[0];
+    const projectId = project.id;
 
     // Rotate API Key if requested
     if (body.action === 'rotate_api_key') {
@@ -115,6 +118,40 @@ export async function PATCH(request: Request, { params }: Params) {
       return NextResponse.json({
         message: 'API key rotated successfully',
         api_key: newApiKey,
+      });
+    }
+
+    // Update External Database URL
+    if ('database_url' in body) {
+      const newDbUrl = body.database_url ? String(body.database_url).trim() : null;
+
+      if (newDbUrl) {
+        const testRes = await testDbConnection(newDbUrl);
+        if (!testRes.success) {
+          return NextResponse.json(
+            { error: `Connection failed to external database: ${testRes.error}` },
+            { status: 400 }
+          );
+        }
+
+        // Initialize schema and existing API tables on new database
+        await createProjectSchema(project.name, newDbUrl);
+        const apis = await sql<
+          { name: string; version: string; columns: any }[]
+        >`SELECT name, version, columns FROM apis WHERE project_id = ${projectId}`;
+
+        for (const api of apis) {
+          await createApiTable(project.name, api.name, api.version, api.columns, newDbUrl);
+        }
+      }
+
+      await sql`
+        UPDATE projects SET database_url = ${newDbUrl} WHERE id = ${projectId}
+      `;
+
+      return NextResponse.json({
+        message: 'Database connection updated successfully',
+        database_url: newDbUrl,
       });
     }
 
@@ -150,9 +187,9 @@ export async function DELETE(request: Request, { params }: Params) {
     const { project: projectName } = await params;
 
     const projects = await sql<
-      { id: string; name: string }[]
+      { id: string; name: string; database_url: string | null }[]
     >`
-      SELECT id, name FROM projects
+      SELECT id, name, database_url FROM projects
       WHERE name = ${projectName} AND user_id = ${auth.userId}
       LIMIT 1
     `;
@@ -163,8 +200,8 @@ export async function DELETE(request: Request, { params }: Params) {
 
     const project = projects[0];
 
-    // Drop schema and cascade in Postgres
-    await dropProjectSchema(project.name);
+    // Drop schema and cascade in Postgres (target database)
+    await dropProjectSchema(project.name, project.database_url);
 
     // Delete project row (cascades to apis, api_checks, notify_channels)
     await sql`DELETE FROM projects WHERE id = ${project.id}`;
@@ -180,4 +217,3 @@ export async function DELETE(request: Request, { params }: Params) {
     );
   }
 }
-

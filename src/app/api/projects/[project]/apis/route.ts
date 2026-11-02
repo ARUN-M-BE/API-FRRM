@@ -16,9 +16,9 @@ export async function POST(request: Request, { params }: Params) {
     const { project: projectName } = await params;
 
     const projects = await sql<
-      { id: string; name: string }[]
+      { id: string; name: string; database_url: string | null }[]
     >`
-      SELECT id, name FROM projects
+      SELECT id, name, database_url FROM projects
       WHERE name = ${projectName} AND user_id = ${auth.userId}
       LIMIT 1
     `;
@@ -52,8 +52,8 @@ export async function POST(request: Request, { params }: Params) {
       );
     }
 
-    // Create table in project schema
-    await createApiTable(project.name, cleanApiName, cleanVersion, validColumns);
+    // Create table in project schema (default or external db)
+    await createApiTable(project.name, cleanApiName, cleanVersion, validColumns, project.database_url);
 
     // Insert API record
     const inserted = await sql<
