@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && opennextjs-cloudflare build --skipNextBuild",
+    "build:next": "next build",
+    "build:worker": "opennextjs-cloudflare build --skipNextBuild",
     "start": "next start",
-    "build:worker": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare deploy",
     "test": "vitest run",
