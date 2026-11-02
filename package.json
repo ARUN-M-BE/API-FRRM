@@ -1,0 +1,35 @@
+{
+  "name": "api-frrm",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "build:worker": "opennextjs-cloudflare build",
+    "preview": "opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare deploy",
+    "test": "vitest run",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@neon/config": "^1.10.0",
+    "@neon/env": "^1.6.8",
+    "@neondatabase/serverless": "^1.2.0",
+    "next": "16.4.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.15",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.4",
+    "typescript": "^5",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.156.1"
+  }
+}

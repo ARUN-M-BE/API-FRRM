@@ -1,0 +1,12 @@
+name = "api-frrm-monitor"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["*/5 * * * *"]   # Every 5 minutes
+
+[vars]
+APP_URL = "https://api-frrm.your-subdomain.workers.dev"
+# Add CRON_SECRET via `wrangler secret put CRON_SECRET`
+
