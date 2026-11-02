@@ -6,10 +6,22 @@ import { usePathname, useRouter } from 'next/navigation';
 
 function DashboardNav() {
   const pathname = usePathname();
+  const projectMatch = pathname.match(/^\/dashboard\/([^/]+)/);
+  const currentProject = projectMatch && projectMatch[1] !== 'new' ? projectMatch[1] : null;
+
   const navItems = [
     { label: 'Projects', href: '/dashboard', icon: '📁' },
     { label: 'New Project', href: '/dashboard/new', icon: '➕' },
-    { label: 'API Tester', href: '/tester', icon: '⚡' },
+    ...(currentProject
+      ? [
+          {
+            label: 'API Client',
+            href: `/dashboard/${currentProject}/client`,
+            icon: '⚡',
+          },
+        ]
+      : []),
+    { label: 'API Tester', href: '/tester', icon: '🧪' },
   ];
 
   return (
