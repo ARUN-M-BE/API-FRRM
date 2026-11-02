@@ -220,3 +220,34 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+
+/* ============================================================ */
+/* API CLIENT RESPONSIVE STYLING */
+/* ============================================================ */
+
+@media (max-width: 1024px) {
+  .api-client-sidebar {
+    width: 220px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .api-client-mobile-tabs {
+    display: flex !important;
+  }
+  
+  .api-client-sidebar {
+    display: none !important;
+  }
+  
+  .api-client-editor {
+    display: flex !important;
+    width: 100% !important;
+    border-right: none !important;
+  }
+  
+  .api-client-response {
+    display: none !important;
+  }
+}
