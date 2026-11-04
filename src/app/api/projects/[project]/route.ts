@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
-import { sql, testDbConnection } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { testMultiDbConnection, DatabaseType, detectDatabaseType } from '@/lib/multi-db';
 import { dropProjectSchema, createProjectSchema, createApiTable } from '@/lib/project-db';
 import { generateApiKey } from '@/lib/api-key';
 
@@ -16,9 +17,9 @@ export async function GET(request: Request, { params }: Params) {
     const { project: projectName } = await params;
 
     const projects = await sql<
-      { id: string; name: string; api_key: string; database_url: string | null; created_at: string }[]
+      { id: string; name: string; api_key: string; database_url: string | null; database_type: string; created_at: string }[]
     >`
-      SELECT id, name, api_key, database_url, created_at
+      SELECT id, name, api_key, database_url, COALESCE(database_type, 'postgres') AS database_type, created_at
       FROM projects
       WHERE name = ${projectName} AND user_id = ${auth.userId}
       LIMIT 1
@@ -97,9 +98,9 @@ export async function PATCH(request: Request, { params }: Params) {
     const body = await request.json();
 
     const projects = await sql<
-      { id: string; name: string; database_url: string | null }[]
+      { id: string; name: string; database_url: string | null; database_type: string | null }[]
     >`
-      SELECT id, name, database_url FROM projects WHERE name = ${projectName} AND user_id = ${auth.userId} LIMIT 1
+      SELECT id, name, database_url, database_type FROM projects WHERE name = ${projectName} AND user_id = ${auth.userId} LIMIT 1
     `;
 
     if (!projects || projects.length === 0) {
@@ -121,37 +122,48 @@ export async function PATCH(request: Request, { params }: Params) {
       });
     }
 
-    // Update External Database URL
-    if ('database_url' in body) {
+    // Update External Database Configuration
+    if ('database_url' in body || 'database_type' in body) {
       const newDbUrl = body.database_url ? String(body.database_url).trim() : null;
+      let newDbType = body.database_type || project.database_type || 'postgres';
 
       if (newDbUrl) {
-        const testRes = await testDbConnection(newDbUrl);
+        newDbType = (body.database_type as DatabaseType) || detectDatabaseType(newDbUrl);
+        const testRes = await testMultiDbConnection(newDbUrl, newDbType);
         if (!testRes.success) {
           return NextResponse.json(
-            { error: `Connection failed to external database: ${testRes.error}` },
+            { error: `Connection failed to external ${newDbType.toUpperCase()}: ${testRes.error}` },
             { status: 400 }
           );
         }
 
-        // Initialize schema and existing API tables on new database
-        await createProjectSchema(project.name, newDbUrl);
-        const apis = await sql<
-          { name: string; version: string; columns: any }[]
-        >`SELECT name, version, columns FROM apis WHERE project_id = ${projectId}`;
+        if (newDbType === 'postgres') {
+          // Initialize schema and existing API tables on new database
+          try {
+            await createProjectSchema(project.name, newDbUrl);
+            const apis = await sql<
+              { name: string; version: string; columns: any }[]
+            >`SELECT name, version, columns FROM apis WHERE project_id = ${projectId}`;
 
-        for (const api of apis) {
-          await createApiTable(project.name, api.name, api.version, api.columns, newDbUrl);
+            for (const api of apis) {
+              await createApiTable(project.name, api.name, api.version, api.columns, newDbUrl);
+            }
+          } catch (tErr) {
+            console.warn('Schema migration warning on external postgres:', tErr);
+          }
         }
       }
 
       await sql`
-        UPDATE projects SET database_url = ${newDbUrl} WHERE id = ${projectId}
+        UPDATE projects 
+        SET database_url = ${newDbUrl}, database_type = ${newDbType} 
+        WHERE id = ${projectId}
       `;
 
       return NextResponse.json({
         message: 'Database connection updated successfully',
         database_url: newDbUrl,
+        database_type: newDbType,
       });
     }
 
@@ -187,9 +199,9 @@ export async function DELETE(request: Request, { params }: Params) {
     const { project: projectName } = await params;
 
     const projects = await sql<
-      { id: string; name: string; database_url: string | null }[]
+      { id: string; name: string; database_url: string | null; database_type: string | null }[]
     >`
-      SELECT id, name, database_url FROM projects
+      SELECT id, name, database_url, database_type FROM projects
       WHERE name = ${projectName} AND user_id = ${auth.userId}
       LIMIT 1
     `;
@@ -200,8 +212,14 @@ export async function DELETE(request: Request, { params }: Params) {
 
     const project = projects[0];
 
-    // Drop schema and cascade in Postgres (target database)
-    await dropProjectSchema(project.name, project.database_url);
+    // Drop schema in Postgres if postgres
+    if (!project.database_type || project.database_type === 'postgres') {
+      try {
+        await dropProjectSchema(project.name, project.database_url);
+      } catch (dropErr) {
+        console.warn('Drop schema warning:', dropErr);
+      }
+    }
 
     // Delete project row (cascades to apis, api_checks, notify_channels)
     await sql`DELETE FROM projects WHERE id = ${project.id}`;

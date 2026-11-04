@@ -291,7 +291,7 @@ function ProjectDetailContent() {
           gap: '1rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', maxWidth: '100%' }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>API KEY:</span>
           <code
             style={{
@@ -299,8 +299,10 @@ function ProjectDetailContent() {
               padding: '0.3rem 0.6rem',
               borderRadius: '6px',
               color: '#34d399',
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
               letterSpacing: '0.05em',
+              wordBreak: 'break-all',
+              maxWidth: '100%',
             }}
           >
             {project.api_key}
@@ -474,7 +476,7 @@ function ProjectDetailContent() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.5rem',
+            padding: '1rem',
           }}
           onClick={() => setActiveCurlApi(null)}
         >
@@ -482,9 +484,11 @@ function ProjectDetailContent() {
             className="glass-panel"
             style={{
               width: '100%',
-              maxWidth: '700px',
+              maxWidth: 'min(700px, 94vw)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
               background: 'var(--bg-secondary)',
-              padding: '1.75rem',
+              padding: '1.5rem',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
             }}
             onClick={(e) => e.stopPropagation()}

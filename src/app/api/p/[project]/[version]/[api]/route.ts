@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { sql, executeRawSql } from '@/lib/db';
+import { sql } from '@/lib/db';
 import { requireProjectApiKey } from '@/lib/middleware';
 import { validateIdentifier, validateVersion, validateBody, ValidationError } from '@/lib/validators';
 import { ColumnDefinition } from '@/lib/schemas';
-import { getTableName } from '@/lib/project-db';
+import { multiDbInsert, multiDbList } from '@/lib/multi-db';
 
 interface Params {
   params: Promise<{
@@ -23,7 +23,6 @@ export async function POST(request: Request, { params }: Params) {
     const cleanProject = validateIdentifier(projectName, 'Project name');
     const cleanVer = validateVersion(version);
     const cleanApi = validateIdentifier(apiName, 'API name');
-    const tableName = getTableName(cleanApi, cleanVer);
 
     // Fetch API definition
     const apis = await sql<
@@ -64,30 +63,15 @@ export async function POST(request: Request, { params }: Params) {
       }
     });
 
-    const results: any[] = [];
-
-    // Insert records
-    for (const item of validatedItems) {
-      const keys = Object.keys(item);
-      if (keys.length === 0) {
-        // Default insert
-        const q = `INSERT INTO "${cleanProject}"."${tableName}" DEFAULT VALUES RETURNING *`;
-        const res = await executeRawSql(q, [], auth.project.database_url);
-        results.push(res[0]);
-      } else {
-        const colList = keys.map((k) => `"${k}"`).join(', ');
-        const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-        const values = keys.map((k) => item[k]);
-
-        const q = `
-          INSERT INTO "${cleanProject}"."${tableName}" (${colList})
-          VALUES (${placeholders})
-          RETURNING *
-        `;
-        const res = await executeRawSql(q, values, auth.project.database_url);
-        results.push(res[0]);
-      }
-    }
+    // Multi-DB insert (PostgreSQL, MySQL, or MongoDB)
+    const results = await multiDbInsert(
+      auth.project.database_type,
+      auth.project.database_url,
+      cleanProject,
+      cleanApi,
+      cleanVer,
+      validatedItems
+    );
 
     return NextResponse.json(isArray ? results : results[0], { status: 201 });
   } catch (error: any) {
@@ -115,9 +99,8 @@ export async function GET(request: Request, { params }: Params) {
     const cleanProject = validateIdentifier(projectName, 'Project name');
     const cleanVer = validateVersion(version);
     const cleanApi = validateIdentifier(apiName, 'API name');
-    const tableName = getTableName(cleanApi, cleanVer);
 
-    // Fetch API definition to know columns
+    // Fetch API definition to know allowed columns
     const apis = await sql<
       { id: string; columns: ColumnDefinition[] }[]
     >`
@@ -144,39 +127,33 @@ export async function GET(request: Request, { params }: Params) {
     const limit = Math.max(1, Math.min(isNaN(limitParam) ? 50 : limitParam, 100));
     const offset = Math.max(0, isNaN(offsetParam) ? 0 : offsetParam);
 
-    // Build filter clauses
-    const whereClauses: string[] = [];
-    const values: any[] = [];
-    let paramIdx = 1;
-
+    const filters: Record<string, any> = {};
     url.searchParams.forEach((val, key) => {
       if (key !== 'limit' && key !== 'offset' && allowedCols.has(key)) {
-        whereClauses.push(`"${key}" = $${paramIdx++}`);
-        values.push(val);
+        filters[key] = val;
       }
     });
 
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-    // Total count query
-    const countQuery = `SELECT COUNT(*)::int AS total FROM "${cleanProject}"."${tableName}" ${whereSql}`;
-    const countResult = await executeRawSql(countQuery, values, auth.project.database_url);
-    const total = countResult[0]?.total || 0;
-
-    // Data query
-    const dataQuery = `
-      SELECT * FROM "${cleanProject}"."${tableName}"
-      ${whereSql}
-      ORDER BY created_at DESC
-      LIMIT $${paramIdx++} OFFSET $${paramIdx++}
-    `;
-    const data = await executeRawSql(dataQuery, [...values, limit, offset], auth.project.database_url);
+    const { data, total } = await multiDbList(
+      auth.project.database_type,
+      auth.project.database_url,
+      cleanProject,
+      cleanApi,
+      cleanVer,
+      {
+        limit,
+        offset,
+        filters,
+        allowedCols,
+      }
+    );
 
     return NextResponse.json({
       data,
       total,
       limit,
       offset,
+      database_type: auth.project.database_type,
     });
   } catch (error: any) {
     console.error('CRUD GET error:', error);
@@ -186,4 +163,3 @@ export async function GET(request: Request, { params }: Params) {
     );
   }
 }
-

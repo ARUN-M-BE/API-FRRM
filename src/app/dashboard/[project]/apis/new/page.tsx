@@ -196,16 +196,7 @@ function AddApiContent() {
             {columns.map((col, idx) => (
               <div
                 key={idx}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1.5fr 1fr 1fr auto',
-                  gap: '0.75rem',
-                  alignItems: 'center',
-                  background: 'rgba(0, 0, 0, 0.25)',
-                  padding: '0.6rem 0.8rem',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                }}
+                className="schema-column-row"
               >
                 <input
                   type="text"

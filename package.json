@@ -20,6 +20,9 @@
     "@neon/env": "^1.6.8",
     "@neondatabase/serverless": "^1.2.0",
     "codemirror": "^6.0.2",
+    "lucide-react": "^1.68.0",
+    "mongodb": "^7.8.0",
+    "mysql2": "^3.24.6",
     "next": "16.4.4",
     "react": "19.3.0",
     "react-dom": "19.3.0"
