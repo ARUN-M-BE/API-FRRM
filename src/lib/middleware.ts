@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionUserId } from './session';
 import { sql } from './db';
 import { verifyApiKey } from './api-key';
+import { DatabaseType } from './multi-db';
 
 export async function requireAuth(request: Request): Promise<{ userId: string } | NextResponse> {
   const userId = await getSessionUserId(request);
@@ -14,7 +15,7 @@ export async function requireAuth(request: Request): Promise<{ userId: string } 
 export async function requireProjectApiKey(
   request: Request,
   projectName: string
-): Promise<{ project: { id: string; name: string; database_url: string | null } } | NextResponse> {
+): Promise<{ project: { id: string; name: string; database_url: string | null; database_type: DatabaseType } } | NextResponse> {
   const apiKeyHeader = request.headers.get('x-api-key');
   if (!apiKeyHeader) {
     return NextResponse.json(
@@ -24,8 +25,8 @@ export async function requireProjectApiKey(
   }
 
   const projects = await sql<
-    { id: string; name: string; api_key: string; database_url: string | null }[]
-  >`SELECT id, name, api_key, database_url FROM projects WHERE name = ${projectName} LIMIT 1`;
+    { id: string; name: string; api_key: string; database_url: string | null; database_type: string | null }[]
+  >`SELECT id, name, api_key, database_url, COALESCE(database_type, 'postgres') AS database_type FROM projects WHERE name = ${projectName} LIMIT 1`;
 
   if (!projects || projects.length === 0) {
     return NextResponse.json(
@@ -42,5 +43,12 @@ export async function requireProjectApiKey(
     );
   }
 
-  return { project: { id: project.id, name: project.name, database_url: project.database_url } };
+  return {
+    project: {
+      id: project.id,
+      name: project.name,
+      database_url: project.database_url,
+      database_type: (project.database_type || 'postgres') as DatabaseType,
+    },
+  };
 }

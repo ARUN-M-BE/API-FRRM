@@ -26,10 +26,24 @@ function ProjectSettingsContent() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [databaseType, setDatabaseType] = useState<'postgres' | 'mysql' | 'mongodb' | 'sqlite'>('postgres');
   const [databaseUrl, setDatabaseUrl] = useState('');
   const [testingDb, setTestingDb] = useState(false);
   const [savingDb, setSavingDb] = useState(false);
   const [dbTestResult, setDbTestResult] = useState<{ success: boolean; latencyMs?: number; error?: string } | null>(null);
+
+  const getDbPlaceholder = () => {
+    switch (databaseType) {
+      case 'mysql':
+        return 'mysql://root:password@127.0.0.1:3306/mydb';
+      case 'mongodb':
+        return 'mongodb+srv://user:password@cluster.mongodb.net/dbname?retryWrites=true&w=majority';
+      case 'sqlite':
+        return 'sqlite:./database.sqlite';
+      default:
+        return 'postgresql://user:password@ep-xyz.neon.tech/neondb?sslmode=require';
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/projects/${projectName}`)
@@ -37,6 +51,7 @@ function ProjectSettingsContent() {
       .then((data) => {
         if (data.project) {
           setApiKey(data.project.api_key);
+          setDatabaseType(data.project.database_type || 'postgres');
           setDatabaseUrl(data.project.database_url || '');
           setChannels(data.project.channels || []);
         } else {
@@ -55,7 +70,7 @@ function ProjectSettingsContent() {
       const res = await fetch('/api/projects/test-connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ database_url: databaseUrl.trim() }),
+        body: JSON.stringify({ database_url: databaseUrl.trim(), database_type: databaseType }),
       });
       const data = await res.json();
       setDbTestResult(data);
@@ -74,10 +89,10 @@ function ProjectSettingsContent() {
       const res = await fetch(`/api/projects/${projectName}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ database_url: databaseUrl.trim() || null }),
+        body: JSON.stringify({ database_url: databaseUrl.trim() || null, database_type: databaseType }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update database URL');
+      if (!res.ok) throw new Error(data.error || 'Failed to update database configuration');
       setMessage('Database configuration updated successfully.');
     } catch (err: any) {
       setError(err.message);
@@ -249,22 +264,55 @@ function ProjectSettingsContent() {
         {/* Database Engine / External Database Configuration */}
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Database Connection</h2>
-            <span className="badge-muted">{databaseUrl ? 'External PostgreSQL' : 'Default Neon Serverless'}</span>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Database Connection &amp; Engine</h2>
+            <span className="badge-muted" style={{ textTransform: 'uppercase' }}>
+              {databaseUrl ? `External ${databaseType}` : 'Default Neon Serverless'}
+            </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-            Configure where the <code>&quot;{projectName}&quot;</code> schema and tables are stored. Leave empty to use the default Neon PostgreSQL database.
+            Configure where the <code>&quot;{projectName}&quot;</code> data and tables are stored. Supports PostgreSQL, MySQL, MongoDB, and SQLite.
           </p>
+
+          {/* Database Type Buttons */}
+          <div className="db-type-grid">
+            {[
+              { id: 'postgres', label: '🐘 PostgreSQL / Neon' },
+              { id: 'mysql', label: '🐬 MySQL' },
+              { id: 'mongodb', label: '🍃 MongoDB' },
+              { id: 'sqlite', label: '🗄️ SQLite / SQL' },
+            ].map((db) => (
+              <button
+                key={db.id}
+                type="button"
+                onClick={() => {
+                  setDatabaseType(db.id as any);
+                  setDbTestResult(null);
+                }}
+                style={{
+                  background: databaseType === db.id ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                  border: databaseType === db.id ? '1px solid #6366f1' : '1px solid var(--border)',
+                  color: databaseType === db.id ? '#fff' : 'var(--text-muted)',
+                  borderRadius: '8px',
+                  padding: '0.45rem 0.85rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {db.label}
+              </button>
+            ))}
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <input
                 type="password"
                 className="input-field"
-                placeholder="postgresql://user:pass@host/db?sslmode=require (Leave empty for default Neon)"
+                placeholder={getDbPlaceholder()}
                 value={databaseUrl}
                 onChange={(e) => setDatabaseUrl(e.target.value)}
-                style={{ flex: 1, minWidth: '320px', fontFamily: 'monospace' }}
+                style={{ flex: 1, minWidth: 'min(100%, 260px)', fontFamily: 'monospace' }}
               />
               <button
                 type="button"

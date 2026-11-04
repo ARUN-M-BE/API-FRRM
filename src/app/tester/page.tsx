@@ -182,11 +182,11 @@ function ApiTesterComponent() {
         </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem', alignItems: 'start' }}>
+      <div className="tester-grid-container">
         {/* Main Request Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Method & URL bar */}
-          <div className="glass-panel" style={{ padding: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="glass-panel tester-url-bar">
             <select
               className="input-field"
               value={method}

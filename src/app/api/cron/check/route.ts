@@ -19,28 +19,32 @@ async function handleCheck(request: Request) {
       return NextResponse.json({ error: 'Unauthorized. Invalid x-cron-secret.' }, { status: 401 });
     }
 
-    // Fetch all APIs with a check_url configured
+    // Fetch all APIs across all projects
     const apis = await sql<
       {
         id: string;
         project_id: string;
         project_name: string;
+        api_key: string;
         name: string;
         version: string;
-        check_url: string;
+        check_url: string | null;
         is_up: boolean | null;
       }[]
     >`
       SELECT a.id, a.project_id, a.name, a.version, a.check_url, a.is_up,
-             p.name AS project_name
+             p.name AS project_name, p.api_key
       FROM apis a
       JOIN projects p ON p.id = a.project_id
-      WHERE a.check_url IS NOT NULL AND a.check_url != ''
     `;
 
     if (!apis || apis.length === 0) {
-      return NextResponse.json({ message: 'No APIs configured for health checks', checked: 0 });
+      return NextResponse.json({ message: 'No APIs found for health checks', checked: 0 });
     }
+
+    const host = request.headers.get('host') || 'localhost:3000';
+    const protocol = request.headers.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
+    const appUrl = process.env.APP_URL || `${protocol}://${host}`;
 
     const results = [];
 
@@ -49,16 +53,25 @@ async function handleCheck(request: Request) {
       let statusCode = 0;
       let latencyMs = 0;
 
+      // Determine check URL: user-specified check_url OR automated ping to API's own CRUD route
+      let targetUrl = api.check_url?.trim();
+      const headers: Record<string, string> = {
+        'User-Agent': 'API-FRRM-Monitor/1.0',
+      };
+
+      if (!targetUrl) {
+        targetUrl = `${appUrl}/api/p/${api.project_name}/${api.version}/${api.name}?limit=1`;
+        headers['x-api-key'] = api.api_key;
+      }
+
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-        const res = await fetch(api.check_url, {
+        const res = await fetch(targetUrl, {
           method: 'GET',
           signal: controller.signal,
-          headers: {
-            'User-Agent': 'API-FRRM-Monitor/1.0',
-          },
+          headers,
         });
         clearTimeout(timeoutId);
 
@@ -92,7 +105,7 @@ async function handleCheck(request: Request) {
         const statusEmoji = isUp ? '✅ [RECOVERED]' : '🚨 [ALERT - DOWN]';
         const msg = `${statusEmoji} API "${api.name}" (${api.version}) in project "${api.project_name}" is now ${
           isUp ? 'UP' : 'DOWN'
-        }!\nStatus Code: ${statusCode}\nLatency: ${latencyMs}ms\nURL: ${api.check_url}`;
+        }!\nStatus Code: ${statusCode}\nLatency: ${latencyMs}ms\nTarget: ${targetUrl}`;
 
         // Fire and forget notification
         notifyChannels(api.project_id, msg).catch((err) =>
@@ -101,33 +114,37 @@ async function handleCheck(request: Request) {
       }
 
       results.push({
-        id: api.id,
-        name: api.name,
-        is_up: isUp,
-        status_code: statusCode,
-        latency_ms: latencyMs,
-        state_changed: stateChanged,
+        api_id: api.id,
+        api_name: api.name,
+        project_name: api.project_name,
+        target_url: targetUrl,
+        statusCode,
+        latencyMs,
+        isUp,
+        stateChanged,
       });
     }
 
-    // Retention cleanup: purge records older than 14 days
+    // Auto-cleanup checks older than 14 days
     try {
-      await sql`DELETE FROM api_checks WHERE checked_at < now() - INTERVAL '14 days'`;
+      await sql`
+        DELETE FROM api_checks
+        WHERE checked_at < now() - interval '14 days'
+      `;
     } catch (cleanupErr) {
-      console.warn('Old check logs cleanup error:', cleanupErr);
+      console.error('Failed to cleanup old api_checks:', cleanupErr);
     }
 
     return NextResponse.json({
       message: 'Health checks completed',
-      checked_count: results.length,
+      checked: results.length,
       results,
     });
   } catch (error: any) {
     console.error('Cron check handler error:', error);
     return NextResponse.json(
-      { error: error?.message || 'Internal server error' },
+      { error: error?.message || 'Failed to execute health checks' },
       { status: 500 }
     );
   }
 }
-

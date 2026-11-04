@@ -61,9 +61,23 @@ export default function NewProjectPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Database configuration
+  const [databaseType, setDatabaseType] = useState<'postgres' | 'mysql' | 'mongodb' | 'sqlite'>('postgres');
   const [databaseUrl, setDatabaseUrl] = useState('');
   const [testingDb, setTestingDb] = useState(false);
   const [dbTestResult, setDbTestResult] = useState<{ success: boolean; latencyMs?: number; error?: string } | null>(null);
+
+  const getDbPlaceholder = () => {
+    switch (databaseType) {
+      case 'mysql':
+        return 'mysql://root:password@127.0.0.1:3306/mydb';
+      case 'mongodb':
+        return 'mongodb+srv://user:password@cluster.mongodb.net/dbname?retryWrites=true&w=majority';
+      case 'sqlite':
+        return 'sqlite:./database.sqlite';
+      default:
+        return 'postgresql://user:password@ep-xyz.neon.tech/neondb?sslmode=require';
+    }
+  };
 
   const testExternalDb = async () => {
     if (!databaseUrl.trim()) return;
@@ -73,7 +87,7 @@ export default function NewProjectPage() {
       const res = await fetch('/api/projects/test-connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ database_url: databaseUrl.trim() }),
+        body: JSON.stringify({ database_url: databaseUrl.trim(), database_type: databaseType }),
       });
       const data = await res.json();
       setDbTestResult(data);
@@ -146,6 +160,7 @@ export default function NewProjectPage() {
         payload = {
           name: name.trim(),
           database_url: databaseUrl.trim() || null,
+          database_type: databaseType,
           apis: apisList,
           notify_channels: channels,
         };
@@ -266,26 +281,57 @@ export default function NewProjectPage() {
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>
-                  2. Database Engine (Optional)
+                  2. Database Engine &amp; Storage
                 </h2>
-                <span className="badge-muted">PostgreSQL</span>
+                <span className="badge-muted" style={{ textTransform: 'uppercase' }}>{databaseType}</span>
               </div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                Leave blank to automatically use the default Serverless Neon PostgreSQL database, or connect your own external PostgreSQL instance.
+                Select your preferred database engine. Leave connection string blank to automatically use the default Neon Serverless PostgreSQL database.
               </p>
+
+              {/* Database Type Buttons */}
+              <div className="db-type-grid">
+                {[
+                  { id: 'postgres', label: '🐘 PostgreSQL / Neon' },
+                  { id: 'mysql', label: '🐬 MySQL' },
+                  { id: 'mongodb', label: '🍃 MongoDB' },
+                  { id: 'sqlite', label: '🗄️ SQLite / SQL' },
+                ].map((db) => (
+                  <button
+                    key={db.id}
+                    type="button"
+                    onClick={() => {
+                      setDatabaseType(db.id as any);
+                      setDbTestResult(null);
+                    }}
+                    style={{
+                      background: databaseType === db.id ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                      border: databaseType === db.id ? '1px solid #6366f1' : '1px solid var(--border)',
+                      color: databaseType === db.id ? '#fff' : 'var(--text-muted)',
+                      borderRadius: '8px',
+                      padding: '0.5rem 0.9rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {db.label}
+                  </button>
+                ))}
+              </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
-                  External Database Connection String
+                  Connection String (Optional - leave empty for default Neon PostgreSQL)
                 </label>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <input
                     type="password"
                     className="input-field"
-                    placeholder="postgresql://user:password@ep-xyz.neon.tech/neondb?sslmode=require"
+                    placeholder={getDbPlaceholder()}
                     value={databaseUrl}
                     onChange={(e) => setDatabaseUrl(e.target.value)}
-                    style={{ flex: 1, fontFamily: 'monospace' }}
+                    style={{ flex: 1, minWidth: 'min(100%, 260px)', fontFamily: 'monospace' }}
                   />
                   <button
                     type="button"
@@ -294,7 +340,7 @@ export default function NewProjectPage() {
                     className="btn-secondary"
                     style={{ whiteSpace: 'nowrap', minWidth: '120px' }}
                   >
-                    {testingDb ? 'Testing...' : 'Test Ping'}
+                    {testingDb ? 'Testing...' : 'Test Connection'}
                   </button>
                 </div>
 
@@ -389,16 +435,7 @@ export default function NewProjectPage() {
                     {columns.map((col, idx) => (
                       <div
                         key={idx}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '2fr 1.5fr 1fr 1fr auto',
-                          gap: '0.75rem',
-                          alignItems: 'center',
-                          background: 'rgba(0, 0, 0, 0.25)',
-                          padding: '0.6rem 0.8rem',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border)',
-                        }}
+                        className="schema-column-row"
                       >
                         <input
                           type="text"

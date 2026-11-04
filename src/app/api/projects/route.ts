@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
-import { sql, testDbConnection } from '@/lib/db';
+import { sql } from '@/lib/db';
+import { testMultiDbConnection, DatabaseType, detectDatabaseType } from '@/lib/multi-db';
 import { validateIdentifier, validateVersion, validateColumns, ValidationError } from '@/lib/validators';
 import { generateApiKey } from '@/lib/api-key';
 import { createProjectSchema, createApiTable } from '@/lib/project-db';
@@ -16,11 +17,12 @@ export async function GET(request: Request) {
         name: string;
         api_key: string;
         database_url: string | null;
+        database_type: string;
         created_at: string;
         api_count: number;
       }[]
     >`
-      SELECT p.id, p.name, p.api_key, p.database_url, p.created_at,
+      SELECT p.id, p.name, p.api_key, p.database_url, COALESCE(p.database_type, 'postgres') AS database_type, p.created_at,
              COUNT(a.id)::int AS api_count
       FROM projects p
       LEFT JOIN apis a ON a.project_id = p.id
@@ -45,18 +47,22 @@ export async function POST(request: Request) {
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
-    const { name, apis = [], notify_channels = [], database_url = null } = body;
+    const { name, apis = [], notify_channels = [], database_url = null, database_type = null } = body;
 
     const cleanProjectName = validateIdentifier(name, 'Project name');
 
     // If an external database URL was provided, verify it first
     let cleanDbUrl: string | null = null;
+    let effectiveDbType: DatabaseType = 'postgres';
+
     if (database_url && typeof database_url === 'string' && database_url.trim()) {
       cleanDbUrl = database_url.trim();
-      const testResult = await testDbConnection(cleanDbUrl);
+      effectiveDbType = (database_type as DatabaseType) || detectDatabaseType(cleanDbUrl);
+
+      const testResult = await testMultiDbConnection(cleanDbUrl, effectiveDbType);
       if (!testResult.success) {
         return NextResponse.json(
-          { error: `External Database connection failed: ${testResult.error || 'Unable to connect'}` },
+          { error: `External ${effectiveDbType.toUpperCase()} connection failed: ${testResult.error || 'Unable to connect'}` },
           { status: 400 }
         );
       }
@@ -76,18 +82,24 @@ export async function POST(request: Request) {
 
     const apiKey = generateApiKey();
 
-    // 1. Insert project into meta table
+    // 1. Insert project into meta table with database_type
     const insertedProject = await sql<
-      { id: string; name: string; api_key: string; database_url: string | null; created_at: string }[]
+      { id: string; name: string; api_key: string; database_url: string | null; database_type: string; created_at: string }[]
     >`
-      INSERT INTO projects (user_id, name, api_key, database_url)
-      VALUES (${auth.userId}, ${cleanProjectName}, ${apiKey}, ${cleanDbUrl})
-      RETURNING id, name, api_key, database_url, created_at
+      INSERT INTO projects (user_id, name, api_key, database_url, database_type)
+      VALUES (${auth.userId}, ${cleanProjectName}, ${apiKey}, ${cleanDbUrl}, ${effectiveDbType})
+      RETURNING id, name, api_key, database_url, database_type, created_at
     `;
     const project = insertedProject[0];
 
-    // 2. Create schema in target database (default or external)
-    await createProjectSchema(cleanProjectName, cleanDbUrl);
+    // 2. Create schema in target database (if postgres)
+    if (effectiveDbType === 'postgres') {
+      try {
+        await createProjectSchema(cleanProjectName, cleanDbUrl);
+      } catch (schemaErr) {
+        console.warn('Could not auto-create schema on external DB:', schemaErr);
+      }
+    }
 
     // 3. Create APIs if provided
     const createdApis = [];
@@ -98,8 +110,14 @@ export async function POST(request: Request) {
         const validColumns = validateColumns(api.columns);
         const checkUrl = api.check_url ? String(api.check_url).trim() : null;
 
-        // Create table in project schema (default or external)
-        await createApiTable(cleanProjectName, cleanApiName, cleanVersion, validColumns, cleanDbUrl);
+        // Create table in project schema if postgres
+        if (effectiveDbType === 'postgres') {
+          try {
+            await createApiTable(cleanProjectName, cleanApiName, cleanVersion, validColumns, cleanDbUrl);
+          } catch (tErr) {
+            console.warn('Could not auto-create table on external DB:', tErr);
+          }
+        }
 
         // Record in apis meta table
         const insertedApi = await sql<

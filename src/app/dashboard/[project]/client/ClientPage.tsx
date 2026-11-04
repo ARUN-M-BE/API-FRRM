@@ -397,6 +397,7 @@ export default function ClientPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', background: '#0a0a0f', color: '#fff' }}>
       {/* Top Action Bar */}
       <div
+        className="api-client-top-bar"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -404,16 +405,18 @@ export default function ClientPage() {
           padding: '10px 18px',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
           background: '#12121a',
+          flexWrap: 'wrap',
+          gap: 10,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 16, background: 'linear-gradient(135deg, #6366f1, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             API Client
           </span>
           <span style={{ color: '#a0a0b0', fontSize: 13 }}>/ {projectName}</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {/* Environment Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
             <span style={{ color: '#a0a0b0' }}>Env:</span>
@@ -426,8 +429,9 @@ export default function ClientPage() {
                 color: '#fff',
                 borderRadius: 6,
                 padding: '4px 8px',
-                fontSize: 13,
+                fontSize: 12,
                 outline: 'none',
+                maxWidth: 130,
               }}
             >
               <option value="">No Environment</option>
@@ -460,8 +464,8 @@ export default function ClientPage() {
               border: '1px solid rgba(255,255,255,0.12)',
               color: '#fff',
               borderRadius: 6,
-              padding: '6px 12px',
-              fontSize: 13,
+              padding: '5px 10px',
+              fontSize: 12,
               cursor: 'pointer',
             }}
           >
@@ -477,8 +481,8 @@ export default function ClientPage() {
                   border: '1px solid rgba(255,255,255,0.12)',
                   color: '#fff',
                   borderRadius: 6,
-                  padding: '6px 12px',
-                  fontSize: 13,
+                  padding: '5px 10px',
+                  fontSize: 12,
                   cursor: 'pointer',
                 }}
               >
@@ -494,8 +498,8 @@ export default function ClientPage() {
                   border: 'none',
                   color: '#fff',
                   borderRadius: 6,
-                  padding: '6px 14px',
-                  fontSize: 13,
+                  padding: '5px 12px',
+                  fontSize: 12,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -513,7 +517,7 @@ export default function ClientPage() {
         {/* LEFT PANE: Sidebar (Collections, History, Environments) */}
         {/* ============================================================ */}
         <div
-          className="api-client-sidebar"
+          className={`api-client-sidebar ${mobileTab === 'sidebar' ? 'mobile-active' : ''}`}
           style={{
             width: 280,
             borderRight: '1px solid rgba(255,255,255,0.08)',
@@ -751,14 +755,14 @@ export default function ClientPage() {
         {/* CENTER PANE: Request Editor */}
         {/* ============================================================ */}
         <div
-          className="api-client-editor"
+          className={`api-client-editor ${mobileTab === 'editor' ? 'mobile-active' : ''}`}
           style={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
             borderRight: '1px solid rgba(255,255,255,0.08)',
             background: '#0e0e16',
-            minWidth: 320,
+            minWidth: 0,
           }}
         >
           {/* Request Header Bar */}
@@ -859,7 +863,7 @@ export default function ClientPage() {
           </div>
 
           {/* Editor Tabs */}
-          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 12px' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 12px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
             {(['params', 'headers', 'auth', 'body', 'assertions', 'extract'] as const).map((t) => (
               <button
                 key={t}
@@ -1243,13 +1247,13 @@ export default function ClientPage() {
         {/* RIGHT PANE: Response Viewer */}
         {/* ============================================================ */}
         <div
-          className="api-client-response"
+          className={`api-client-response ${mobileTab === 'response' ? 'mobile-active' : ''}`}
           style={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
             background: '#0a0a0f',
-            minWidth: 320,
+            minWidth: 0,
           }}
         >
           {/* Response Status Bar */}
@@ -1289,7 +1293,7 @@ export default function ClientPage() {
           </div>
 
           {/* Response Tabs */}
-          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 12px' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '0 12px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
             {(['body', 'headers', 'assertions'] as const).map((t) => (
               <button
                 key={t}
@@ -1390,32 +1394,40 @@ export default function ClientPage() {
         className="api-client-mobile-tabs"
         style={{
           display: 'none',
-          borderTop: '1px solid rgba(255,255,255,0.1)',
-          background: '#12121a',
-          padding: '6px 0',
+          borderTop: '1px solid rgba(255,255,255,0.12)',
+          background: '#0d0e14',
+          padding: '4px 6px',
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 40,
         }}
       >
-        {(['sidebar', 'editor', 'response'] as const).map((pane) => (
-          <button
-            key={pane}
-            onClick={() => setMobileTab(pane)}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              color: mobileTab === pane ? '#6366f1' : '#a0a0b0',
-              fontWeight: 600,
-              fontSize: 12,
-              padding: '6px 0',
-              cursor: 'pointer',
-              textTransform: 'capitalize',
-            }}
-          >
-            {pane === 'sidebar' && '📁 Collections'}
-            {pane === 'editor' && '✏️ Request'}
-            {pane === 'response' && '📄 Response'}
-          </button>
-        ))}
+        {(['sidebar', 'editor', 'response'] as const).map((pane) => {
+          const isActive = mobileTab === pane;
+          return (
+            <button
+              key={pane}
+              onClick={() => setMobileTab(pane)}
+              style={{
+                flex: 1,
+                background: isActive ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+                border: isActive ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid transparent',
+                borderRadius: 8,
+                color: isActive ? '#fff' : '#9ca3af',
+                fontWeight: 600,
+                fontSize: 12,
+                padding: '8px 4px',
+                cursor: 'pointer',
+                textTransform: 'capitalize',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {pane === 'sidebar' && '📁 Collections'}
+              {pane === 'editor' && '✏️ Request'}
+              {pane === 'response' && '📄 Response'}
+            </button>
+          );
+        })}
       </div>
 
       {/* ============================================================ */}
@@ -1424,8 +1436,8 @@ export default function ClientPage() {
 
       {/* Import Modal */}
       {showImportModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ width: 500, background: '#12121a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: 20 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
+          <div style={{ width: 'min(500px, 94vw)', maxHeight: '85vh', overflowY: 'auto', background: '#12121a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: 20 }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 16 }}>Import Collection</h3>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               {(['postman', 'curl', 'openapi'] as const).map((t) => (
@@ -1469,8 +1481,8 @@ export default function ClientPage() {
 
       {/* New Collection Modal */}
       {showNewColModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ width: 400, background: '#12121a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: 20 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
+          <div style={{ width: 'min(400px, 94vw)', background: '#12121a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: 20 }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 16 }}>New Collection</h3>
             <input
               type="text"
@@ -1493,8 +1505,8 @@ export default function ClientPage() {
 
       {/* New Environment Modal */}
       {showNewEnvModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ width: 480, background: '#12121a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: 20 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
+          <div style={{ width: 'min(480px, 94vw)', maxHeight: '85vh', overflowY: 'auto', background: '#12121a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: 20 }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 16 }}>New Environment</h3>
             <input
               type="text"
@@ -1550,8 +1562,8 @@ export default function ClientPage() {
 
       {/* Runner Modal */}
       {showRunnerModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ width: 600, maxHeight: '80vh', background: '#12121a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
+          <div style={{ width: 'min(600px, 94vw)', maxHeight: '85vh', background: '#12121a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 16 }}>Collection Test Runner</h3>
             {runningCollection ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#a0a0b0' }}>
