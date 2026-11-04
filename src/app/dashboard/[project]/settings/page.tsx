@@ -274,7 +274,7 @@ function ProjectSettingsContent() {
           </p>
 
           {/* Database Type Buttons */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+          <div className="db-type-grid">
             {[
               { id: 'postgres', label: '🐘 PostgreSQL / Neon' },
               { id: 'mysql', label: '🐬 MySQL' },

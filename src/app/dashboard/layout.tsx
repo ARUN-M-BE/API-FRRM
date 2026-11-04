@@ -172,34 +172,51 @@ export default function DashboardLayout({
         {/* Brand */}
         <div
           style={{
-            padding: '1.5rem',
+            padding: '1.25rem 1.5rem',
             borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.75rem',
+            justifyContent: 'space-between',
           }}
         >
-          <div
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: 'var(--accent-gradient)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                color: '#fff',
+              }}
+            >
+              F
+            </div>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: '1.15rem', letterSpacing: '-0.02em', display: 'block' }}>
+                API-FRRM
+              </span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Multi-DB &amp; Monitor Platform</span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="mobile-close-btn"
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              background: 'var(--accent-gradient)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              color: '#fff',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: '6px',
             }}
+            aria-label="Close navigation"
           >
-            F
-          </div>
-          <div>
-            <span style={{ fontWeight: 700, fontSize: '1.15rem', letterSpacing: '-0.02em', display: 'block' }}>
-              API-FRRM
-            </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Multi-DB &amp; Monitor Platform</span>
-          </div>
+            <X size={20} />
+          </button>
         </div>
 
         {/* Nav Links wrapped in Suspense */}
