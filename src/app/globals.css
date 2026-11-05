@@ -389,14 +389,34 @@ body {
 /* DASHBOARD RESPONSIVE LAYOUT */
 /* ============================================================ */
 
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.dashboard-root,
 .dashboard-container {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.dashboard-body {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
 }
 
 .dashboard-sidebar {
   width: 260px;
-  background: rgba(14, 16, 22, 0.95);
+  background: rgba(14, 16, 22, 0.98);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -405,7 +425,7 @@ body {
   bottom: 0;
   left: 0;
   z-index: 40;
-  transition: transform 0.25s ease-in-out;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dashboard-main {
@@ -415,6 +435,8 @@ body {
   padding: 2rem;
   max-width: 1400px;
   width: calc(100% - 260px);
+  box-sizing: border-box;
+  overflow-x: hidden;
   transition: margin-left 0.25s ease-in-out, width 0.25s ease-in-out;
 }
 
@@ -422,14 +444,19 @@ body {
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0.85rem 1.25rem;
-  background: rgba(14, 16, 22, 0.95);
+  padding: 0 1rem;
+  background: rgba(12, 14, 19, 0.96);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 50;
-  backdrop-filter: blur(12px);
+  left: 0;
+  right: 0;
   width: 100%;
+  height: 58px;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
 }
 
 .mobile-close-btn {
@@ -437,22 +464,25 @@ body {
 }
 
 .db-type-grid {
-  display: flex;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
   margin-bottom: 1.25rem;
-  flex-wrap: wrap;
+  width: 100%;
 }
 
-@media (max-width: 768px) {
-  .dashboard-container {
-    flex-direction: column !important;
-  }
+.db-type-grid button {
+  width: 100%;
+  box-sizing: border-box;
+}
 
+@media (max-width: 1024px) {
   .dashboard-mobile-header {
     display: flex !important;
-    width: 100% !important;
-    height: 56px;
-    box-sizing: border-box;
+  }
+
+  .dashboard-body {
+    flex-direction: column !important;
   }
 
   .mobile-close-btn {
@@ -460,46 +490,49 @@ body {
   }
 
   .dashboard-sidebar {
-    width: 280px !important;
-    max-width: 82vw !important;
+    width: 290px !important;
+    max-width: 85vw !important;
     transform: translateX(-100%);
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 60;
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 100 !important;
+    box-shadow: none;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
   .dashboard-sidebar.open {
-    transform: translateX(0);
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+    transform: translateX(0) !important;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.95) !important;
   }
 
   .dashboard-sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
-    z-index: 55;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    z-index: 95 !important;
   }
 
   .dashboard-main {
     margin-left: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    padding: 1rem 0.85rem !important;
-    overflow-x: hidden;
+    min-height: calc(100vh - 58px) !important;
+    padding: 1.25rem 0.9rem !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
 
   .db-type-grid {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 0.5rem !important;
   }
 
   .db-type-grid button {
-    width: 100% !important;
-    padding: 0.6rem 0.5rem !important;
+    padding: 0.65rem 0.5rem !important;
     font-size: 0.8rem !important;
     white-space: nowrap !important;
     overflow: hidden !important;

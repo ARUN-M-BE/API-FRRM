@@ -367,9 +367,9 @@ export default function NewProjectPage() {
             {/* Initial API Definition */}
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '0.75rem' }}>
-                2. Initial API &amp; Table (Optional)
+                3. Initial API &amp; Table (Optional)
               </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
                     API / Table Name
@@ -418,6 +418,8 @@ export default function NewProjectPage() {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       marginBottom: '0.75rem',
+                      flexWrap: 'wrap',
+                      gap: '0.5rem',
                     }}
                   >
                     <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Schema Columns</span>
@@ -425,7 +427,7 @@ export default function NewProjectPage() {
                       type="button"
                       onClick={addColumn}
                       className="btn-secondary"
-                      style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
+                      style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
                     >
                       + Add Column
                     </button>
@@ -480,6 +482,7 @@ export default function NewProjectPage() {
                             color: '#fb7185',
                             cursor: 'pointer',
                             fontSize: '1rem',
+                            padding: '4px',
                           }}
                         >
                           ✕
@@ -494,12 +497,12 @@ export default function NewProjectPage() {
             {/* Notification Channels */}
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 600, marginBottom: '0.75rem' }}>
-                3. Notification Channels (Optional)
+                4. Notification Channels (Optional)
               </h2>
-              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                 <select
                   className="input-field"
-                  style={{ width: '150px' }}
+                  style={{ minWidth: '130px', flex: '0 1 auto' }}
                   value={channelType}
                   onChange={(e) => setChannelType(e.target.value)}
                 >
@@ -511,6 +514,7 @@ export default function NewProjectPage() {
                 <input
                   type="text"
                   className="input-field"
+                  style={{ flex: '1 1 200px' }}
                   placeholder={
                     channelType === 'telegram'
                       ? 'Telegram Chat ID'
@@ -525,7 +529,7 @@ export default function NewProjectPage() {
                   type="button"
                   onClick={addChannel}
                   className="btn-secondary"
-                  style={{ whiteSpace: 'nowrap' }}
+                  style={{ whiteSpace: 'nowrap', minWidth: '80px' }}
                 >
                   Add
                 </button>
@@ -577,11 +581,11 @@ export default function NewProjectPage() {
           </div>
         )}
 
-        <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-          <Link href="/dashboard" className="btn-secondary">
+        <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <Link href="/dashboard" className="btn-secondary" style={{ flex: '1 1 auto', textAlign: 'center', justifyContent: 'center' }}>
             Cancel
           </Link>
-          <button type="submit" className="btn-primary" disabled={loading} style={{ minWidth: '150px' }}>
+          <button type="submit" className="btn-primary" disabled={loading} style={{ flex: '2 1 180px', minWidth: '150px', justifyContent: 'center' }}>
             {loading ? 'Creating...' : 'Create Project'}
           </button>
         </div>

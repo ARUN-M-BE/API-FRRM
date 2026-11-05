@@ -81,6 +81,7 @@ export async function POST(request: Request) {
         headers['x-api-key'] = api.api_key;
       }
 
+      let errorMessage: string | null = null;
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -94,17 +95,21 @@ export async function POST(request: Request) {
 
         statusCode = res.status;
         latencyMs = Math.round(performance.now() - startTime);
+        if (statusCode >= 400) {
+          errorMessage = `HTTP ${statusCode} ${res.statusText}`;
+        }
       } catch (err: any) {
         latencyMs = Math.round(performance.now() - startTime);
         statusCode = 504;
+        errorMessage = err.message || 'Connection timed out';
       }
 
       const isUp = statusCode >= 200 && statusCode < 400;
 
-      // Record check into api_checks
+      // Record check into api_checks with endpoint and error_message
       await sql`
-        INSERT INTO api_checks (api_id, status_code, latency_ms)
-        VALUES (${api.id}, ${statusCode}, ${latencyMs})
+        INSERT INTO api_checks (api_id, status_code, latency_ms, endpoint, error_message)
+        VALUES (${api.id}, ${statusCode}, ${latencyMs}, ${targetUrl}, ${errorMessage})
       `;
 
       // Check state change
@@ -117,15 +122,29 @@ export async function POST(request: Request) {
         WHERE id = ${api.id}
       `;
 
+      // Log alert event on state change or severe degradation
       if (stateChanged) {
+        const eventType = isUp ? 'RECOVERY' : 'FAILURE';
         const statusEmoji = isUp ? '✅ [RECOVERED]' : '🚨 [ALERT - DOWN]';
         const msg = `${statusEmoji} API "${api.name}" (${api.version}) in project "${api.project_name}" is now ${
           isUp ? 'UP' : 'DOWN'
-        }!\nStatus Code: ${statusCode}\nLatency: ${latencyMs}ms\nURL: ${targetUrl}`;
+        }! (HTTP ${statusCode}, ${latencyMs}ms)`;
 
-        notifyChannels(api.project_id, msg).catch((err) =>
+        await sql`
+          INSERT INTO alert_events (user_id, api_id, api_name, endpoint, event_type, status_code, latency_ms, message)
+          VALUES (${auth.userId}, ${api.id}, ${api.name}, ${targetUrl}, ${eventType}, ${statusCode}, ${latencyMs}, ${msg})
+        `;
+
+        notifyChannels(api.project_id, `${msg}\nURL: ${targetUrl}`).catch((err) =>
           console.error('Notification dispatch error:', err)
         );
+      } else if (isUp && latencyMs > 800) {
+        // Record degraded event for high latency
+        const degradedMsg = `⚠️ [DEGRADED] API "${api.name}" slow response: ${latencyMs}ms`;
+        await sql`
+          INSERT INTO alert_events (user_id, api_id, api_name, endpoint, event_type, status_code, latency_ms, message)
+          VALUES (${auth.userId}, ${api.id}, ${api.name}, ${targetUrl}, 'DEGRADED', ${statusCode}, ${latencyMs}, ${degradedMsg})
+        `;
       }
 
       results.push({
