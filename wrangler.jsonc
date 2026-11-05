@@ -9,6 +9,8 @@
     "binding": "ASSETS"
   },
   "vars": {
+    "DATABASE_URL":"postgresql://neondb_owner:npg_btz0gDGJ3ROi@ep-bold-union-b3235x6l-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require",
+    "DATABASE_URL_UNPOOLED" : "postgresql://neondb_owner:npg_btz0gDGJ3ROi@ep-bold-union-b3235x6l.c-4.ap-southeast-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require",
     "NEON_BRANCH": "production",
     "SESSION_SECRET": "+oPQ0/JgG6p/vy9suWMfYWXwWJDhQdZw9SIE5PPUiSQ=",
     "CRON_SECRET": "cron_secret_762b871c_api_frrm_secure"
