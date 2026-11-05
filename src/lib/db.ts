@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import { getEnv } from './env';
 
 // Ensure Node.js local environment resolves Neon DNS reliably if local DNS has restrictions
 if (typeof process !== 'undefined' && process.versions && process.versions.node) {
@@ -48,9 +49,14 @@ export function getDb(customUrl?: string | null): any {
   }
 
   if (cachedDefaultSql) return cachedDefaultSql;
-  const dbUrl = process.env.DATABASE_URL;
+  const dbUrl =
+    getEnv('DATABASE_URL') ||
+    getEnv('DATABASE_URL_UNPOOLED');
+
   if (!dbUrl) {
-    throw new Error('DATABASE_URL environment variable is not defined.');
+    throw new Error(
+      'DATABASE_URL environment variable is not defined. Ensure DATABASE_URL is set in wrangler.jsonc under "vars" or in Cloudflare Dashboard (Workers & Pages > Settings > Variables and Secrets).'
+    );
   }
   cachedDefaultSql = neon(dbUrl);
   return cachedDefaultSql;

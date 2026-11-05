@@ -1,3 +1,5 @@
+import { getEnv } from './env';
+
 /**
  * Edge-compatible session management using Web Crypto HMAC-SHA256 signed tokens.
  */
@@ -6,7 +8,7 @@ const SESSION_COOKIE_NAME = 'frrm_session';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 function getSecretKey(): string {
-  return process.env.SESSION_SECRET || 'default-fallback-insecure-secret-key-32-chars-min!';
+  return getEnv('SESSION_SECRET') || 'default-fallback-insecure-secret-key-32-chars-min!';
 }
 
 async function getHmacKey(): Promise<CryptoKey> {

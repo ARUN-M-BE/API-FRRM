@@ -1,4 +1,5 @@
 import { sql } from './db';
+import { getEnv } from './env';
 
 export async function sendTelegram(botToken: string, chatId: string, text: string): Promise<boolean> {
   try {
@@ -78,8 +79,8 @@ export async function notifyChannels(projectId: string, message: string): Promis
 
     if (!channels || channels.length === 0) return;
 
-    const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-    const resendApiKey = process.env.RESEND_API_KEY;
+    const telegramToken = getEnv('TELEGRAM_BOT_TOKEN');
+    const resendApiKey = getEnv('RESEND_API_KEY');
 
     await Promise.allSettled(
       channels.map(async (ch) => {

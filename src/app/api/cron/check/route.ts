@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { notifyChannels } from '@/lib/notifications';
+import { getEnv } from '@/lib/env';
 
 export async function GET(request: Request) {
   return handleCheck(request);
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
 
 async function handleCheck(request: Request) {
   try {
-    const cronSecret = process.env.CRON_SECRET;
+    const cronSecret = getEnv('CRON_SECRET');
     const providedSecret = request.headers.get('x-cron-secret');
 
     if (cronSecret && providedSecret !== cronSecret) {
@@ -44,7 +45,7 @@ async function handleCheck(request: Request) {
 
     const host = request.headers.get('host') || 'localhost:3000';
     const protocol = request.headers.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https');
-    const appUrl = process.env.APP_URL || `${protocol}://${host}`;
+    const appUrl = getEnv('APP_URL') || `${protocol}://${host}`;
 
     const results = [];
 

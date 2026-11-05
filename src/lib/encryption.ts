@@ -1,3 +1,5 @@
+import { getEnv } from "./env";
+
 /**
  * AES-GCM encryption for secret environment variable values.
  * Uses the Web Crypto API — works on Edge / Cloudflare Workers.
@@ -14,7 +16,7 @@ async function getDerivedKey(): Promise<CryptoKey> {
   if (_cachedKey) return _cachedKey;
 
   const secret =
-    process.env.ENCRYPTION_KEY || process.env.SESSION_SECRET || "";
+    getEnv("ENCRYPTION_KEY") || getEnv("SESSION_SECRET") || "";
   if (!secret) throw new Error("ENCRYPTION_KEY or SESSION_SECRET must be set");
 
   const enc = new TextEncoder();
